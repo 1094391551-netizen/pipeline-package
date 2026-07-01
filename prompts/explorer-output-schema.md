@@ -19,7 +19,10 @@ Every explorer must return exactly 8 candidates using this schema:
   "supply_notes": "",
   "risk_score": 0,
   "risk_flags": [],
-  "differentiation_paths": [],
+  "evidence_based_differentiation": [],
+  "generated_idea_differentiation": [],
+  "differentiation_confidence": "high | medium | low",
+  "gate_status": "A | B | B_ASIN_REVERSE_REQUIRED | C",
   "ai_recommendation": "A | B | C",
   "grade_reason": "",
   "human_decision": "GO | WATCH | KILL | SUPPLIER_CHECK | PATENT_CHECK",
@@ -30,4 +33,6 @@ Every explorer must return exactly 8 candidates using this schema:
 
 Candidates missing an Amazon ASIN/link or offsite evidence must be marked `REJECT` or `WATCH`, never `PASS_TO_SIF`.
 
-Candidates without differentiation paths cannot be graded `A`.
+Candidates without `evidence_based_differentiation` cannot be graded `A`. Generated differentiation ideas can be included, but they only support `B` notes until validated.
+
+Candidates with strong exact-fit / model-specific evidence but no ABA/Sif history should use `gate_status = "B_ASIN_REVERSE_REQUIRED"` and enter the watchlist instead of being auto-rejected.

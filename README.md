@@ -28,17 +28,25 @@ Method-based explorers produce candidates with Amazon links, offsite evidence, p
 
 ### 3. Pre-SIF Gate
 
-Before Sif, each candidate must satisfy at least 3 of 7 entry conditions:
+Before Sif, each candidate must satisfy all required fields:
 
 - repair / replacement / installation / consumable pain point
-- specific equipment, model, brand, or use scenario
 - Amazon ASIN or competitor link
 - offsite evidence
+
+Then it must pass at least 3 optional signals:
+
+- exact-fit / model-specific signal
+- clear replacement, installation, or consumable use
 - keyword is not generic
 - price or margin appears feasible
 - not in rejected history
+- low obvious commodity risk
+- category is not over-scanned
 
 Failures are written to `rejected/pre_sif_rejected.md`.
+
+No ABA history is not automatic failure for long-tail exact-fit parts, but these candidates cannot become `A` until Sif or ASIN-reverse demand evidence exists.
 
 ### 4. Sif Validation
 
@@ -52,13 +60,20 @@ Every opportunity receives:
 - `supply_notes`
 - `risk_score`
 - `risk_flags`
-- `differentiation_paths`
+- `evidence_based_differentiation`
+- `generated_idea_differentiation`
+- `differentiation_confidence`
+
+Generated differentiation is not proof. It can support B-class research notes, but only evidence-based differentiation can support an A grade.
 
 ### 6. A/B/C Grading
 
-- `A`: can deep dive now
-- `B`: watch / needs more evidence
+- `A`: can deep dive now, but only with demand evidence from Sif or ASIN reverse plus evidence-based differentiation
+- `B`: watch / needs more evidence; B is not a failure pool
+- `B_ASIN_REVERSE_REQUIRED`: long-tail exact-fit candidate with offsite evidence but no ABA/Sif history; send to `watchlist/YYYY-MM-DD.md`
 - `C`: reject
+
+`A` is not "looks doable." It means the opportunity has passed the quality gates and has evidence of demand. Candidates without Sif or ASIN-reverse evidence are capped at `B`.
 
 ### 7. Human Decision
 
@@ -72,4 +87,3 @@ Every opportunity persisted to `opportunities/` must include:
 ### 8. Weekly Review
 
 Use `reports/weekly-review-template.md` to review candidate count, A/B/C mix, top opportunities, rejected reasons, agent performance, category coverage, human decisions, and next week's exploration direction.
-

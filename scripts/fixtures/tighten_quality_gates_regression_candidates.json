@@ -1,0 +1,62 @@
+[
+  {
+    "industry": "RV",
+    "product_keyword": "rv awning pull strap replacement",
+    "amazon_asin_or_link": "https://www.amazon.com/dp/B09GPKM47P",
+    "offsite_evidence": "RV forum and eBay sold comps discuss broken awning pull straps and model-fit replacements.",
+    "pain_point": "Original pull strap tears or frays, preventing users from extending manual RV awnings.",
+    "exact_fit_or_model_specific": "Exact-fit by awning rail width and strap length.",
+    "homogeneity_judgment": "Medium; fitment table and reinforced stitching can differentiate.",
+    "estimated_price_or_margin_potential": "$12-$25 replacement part range",
+    "category_not_over_scanned": true,
+    "evidence_based_differentiation": ["reinforced stitching evidence from complaint gap", "clear compatible awning length table"]
+  },
+  {
+    "industry": "sewing machine repair",
+    "product_keyword": "sewing machine bobbin winder tire",
+    "amazon_asin_or_link": "https://www.amazon.com/s?k=sewing+machine+bobbin+winder+tire",
+    "offsite_evidence": "Repair manuals and YouTube repair videos show worn bobbin winder tires causing winding failure.",
+    "pain_point": "Rubber tire hardens or cracks, so the bobbin winder slips and cannot wind thread evenly.",
+    "exact_fit_or_model_specific": "Model-specific diameter and shaft fitment.",
+    "homogeneity_judgment": "Low to medium; fitment chart and multi-diameter set matter.",
+    "estimated_price_or_margin_potential": "$7-$18 small rubber replacement part",
+    "category_not_over_scanned": true,
+    "evidence_based_differentiation": ["diameter fitment chart from repair manual evidence"]
+  },
+  {
+    "industry": "vending machine repair",
+    "product_keyword": "vending machine bill validator belt",
+    "amazon_asin_or_link": "https://www.amazon.com/s?k=vending+machine+bill+validator+belt",
+    "offsite_evidence": "Independent vending parts stores list validator belts by validator model; forum posts discuss bill-feed failures.",
+    "pain_point": "Worn belt causes bill validator feed errors and rejected bills.",
+    "exact_fit_or_model_specific": "Model-specific belt length and pulley fit.",
+    "homogeneity_judgment": "Medium; exact validator model compatibility is the main differentiator.",
+    "estimated_price_or_margin_potential": "$10-$30 passive belt part",
+    "category_not_over_scanned": true,
+    "evidence_based_differentiation": ["validator model compatibility table from parts-store evidence"]
+  },
+  {
+    "industry": "packaging equipment repair",
+    "product_keyword": "impulse sealer teflon strip replacement",
+    "amazon_asin_or_link": "https://www.amazon.com/s?k=impulse+sealer+teflon+strip+replacement",
+    "offsite_evidence": "Packaging equipment manuals and eBay repair kits show PTFE strip replacement for worn impulse sealers.",
+    "pain_point": "Burned or torn PTFE strip sticks to bags and creates weak seals.",
+    "exact_fit_or_model_specific": "Fit by sealer bar length and strip width.",
+    "homogeneity_judgment": "Medium; pre-cut length packs and model chart can differentiate.",
+    "estimated_price_or_margin_potential": "$8-$20 consumable strip replacement",
+    "category_not_over_scanned": true,
+    "evidence_based_differentiation": ["pre-cut length coverage based on sealer bar evidence"]
+  },
+  {
+    "industry": "aquarium equipment repair",
+    "product_keyword": "aquarium canister filter latch replacement",
+    "amazon_asin_or_link": "https://www.amazon.com/s?k=aquarium+canister+filter+latch+replacement",
+    "offsite_evidence": "Aquarium forums and independent parts stores discuss broken canister filter latch clips by filter model.",
+    "pain_point": "Latch breaks and the canister lid cannot clamp evenly, risking leaks or poor filtration.",
+    "exact_fit_or_model_specific": "Exact-fit by canister filter model and latch geometry.",
+    "homogeneity_judgment": "Medium; model-specific fit and reinforced material can differentiate.",
+    "estimated_price_or_margin_potential": "$9-$25 molded replacement latch",
+    "category_not_over_scanned": true,
+    "evidence_based_differentiation": ["model-specific latch geometry evidence from parts listings"]
+  }
+]
