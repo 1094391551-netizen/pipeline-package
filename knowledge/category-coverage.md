@@ -1,17 +1,24 @@
 # Category Coverage
 
-Track daily industry coverage and prevent category tunnel vision.
+Track category coverage and prevent the pipeline from overusing familiar industries.
 
-## Rules
+## Required Report Fields
 
-- Do not allow the same primary industry on two consecutive days.
-- Reduce weight for industries scanned frequently in the past 14 days.
-- Every daily run must include at least 5 low-frequency or unseen industries from the past 30 days.
-- Known categories may occupy no more than 40% of daily candidates.
-- Adjacent categories should occupy about 30%.
-- Random new industries should occupy about 30%.
+- past_7_days_scanned_industries
+- past_30_days_scanned_industries
+- high_frequency_industries
+- low_frequency_industries
+- industry_sif_pass_rate
+- industry_watch_rate
+- industry_reject_rate
+- suggested_next_industries
 
-## Historical High-Frequency Terms To Penalize
+## Current Coverage Snapshot
+
+| Industry | Past 7 days | Past 30 days | SIF pass rate | WATCH rate | REJECT rate |
+|---|---:|---:|---:|---:|---:|
+
+## High-Frequency Industries
 
 - PTAC
 - dock bumper
@@ -21,3 +28,13 @@ Track daily industry coverage and prevent category tunnel vision.
 - lab
 - HVAC
 
+## Low-Frequency / Suggested Next Industries
+
+- aquarium
+- vending machine
+- sewing machine
+- garage tools
+- photo/video equipment
+- musical instruments
+- pool/spa
+- packaging equipment

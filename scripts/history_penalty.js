@@ -24,7 +24,7 @@ function main() {
 
   const candidatesPath = path.join(outDir, "raw_candidates.json");
   const candidates = fs.existsSync(candidatesPath)
-    ? JSON.parse(fs.readFileSync(candidatesPath, "utf8"))
+    ? JSON.parse(fs.readFileSync(candidatesPath, "utf8").replace(/^\uFEFF/, ""))
     : [];
 
   const skipped = [];
@@ -54,4 +54,3 @@ function main() {
 }
 
 main();
-
