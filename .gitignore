@@ -1,0 +1,43 @@
+# Runtime outputs
+runs/
+runs-*/
+round_*/
+reports/
+tmp/
+temp/
+
+# Browser profiles / caches
+**/amazon-profile/
+**/browser-profile/
+**/chrome-profile/
+**/Default/Service Worker/
+**/Default/Cache/
+**/Default/CacheStorage/
+**/Default/Code Cache/
+**/Default/GPUCache/
+**/Default/IndexedDB/
+**/Default/Local Storage/
+**/Default/Session Storage/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Node
+node_modules/
+npm-cache/
+.pnpm-store/
+
+# Secrets
+.env
+.env.*
+*.secret
+*.token
