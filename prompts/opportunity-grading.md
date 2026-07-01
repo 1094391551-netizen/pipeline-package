@@ -24,7 +24,14 @@ Use when:
 - Supply/risk needs further verification.
 - Generated differentiation ideas exist but no evidence-based path is proven yet.
 
-Use `B_ASIN_REVERSE_REQUIRED` when the candidate has long-tail exact-fit evidence but lacks ABA/Sif history. These candidates enter `watchlist/YYYY-MM-DD.md`, not the failure pool.
+Use B sub-states:
+
+- `B_ASIN_REVERSE_REQUIRED`: Pre-SIF passed, no sufficient ABA/Sif evidence, clear exact-fit or model-specific signal, strong offsite evidence, target ASIN/link, and concrete next checks.
+- `B_WATCH_NEEDS_EVIDENCE`: useful signal exists, but offsite evidence is weak or incomplete.
+- `B_SUPPLIER_CHECK_REQUIRED`: evidence exists, but supply feasibility is not acceptable yet.
+- `B_PATENT_CHECK_REQUIRED`: patent risk must be checked before deeper validation.
+
+Do not put all B candidates into ASIN reverse. `B_ASIN_REVERSE_REQUIRED` is capped at 15 per day and `B_WATCH_NEEDS_EVIDENCE` is capped at 20 per day. Overflow goes to `rejected/overflow_rejected.md` with `watchlist_capacity_exceeded` and a 14-day recheck note. Unknown category history should not move a candidate into A or B by itself.
 
 ## C - Reject
 

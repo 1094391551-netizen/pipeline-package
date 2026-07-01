@@ -2,6 +2,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { evidenceQuality } = require("./pre_sif_gate.js");
 
 function argValue(name, fallback) {
   const idx = process.argv.indexOf(`--${name}`);
@@ -180,27 +181,51 @@ function asinReverseEvidence(candidate) {
   return explicit || (hasText(candidate.target_asin_or_link || candidate.amazon_asin_or_link || candidate.asin) && explanatory);
 }
 
-function hasExactFitOffsiteEvidence(candidate) {
-  const text = wholeCandidateText(candidate);
+function targetAsinOrLink(candidate) {
+  return candidate.target_asin_or_link || candidate.amazon_asin_or_link || candidate.amazon || candidate.asin || "";
+}
+
+function exactFitSignal(candidate) {
+  const text = wholeCandidateText({
+    keyword: candidate.product_keyword || candidate.keyword,
+    exact_fit_or_model_specific: candidate.exact_fit_or_model_specific,
+    exact_fit_signal: candidate.exact_fit_signal,
+    compatibility: candidate.compatibility,
+    model: candidate.model,
+    part_number: candidate.part_number
+  });
+  if (!text.trim()) return false;
+  if (hasAny(text, ["generic", "universal", "not model-specific"])) return false;
   return hasAny(text, [
     "exact-fit",
     "exact fit",
     "model-specific",
-    "fit by",
-    "compatible",
+    "model specific",
+    "compatible with",
     "part number",
-    "manual",
-    "repair manual",
-    "service manual",
-    "ebay",
-    "ebay sold",
-    "sold comps",
-    "forum",
-    "youtube",
-    "reddit",
-    "independent parts store",
-    "parts store"
+    "part-number",
+    "fit by",
+    "diameter",
+    "width",
+    "length",
+    "thread",
+    "rail",
+    "profile",
+    "shank",
+    "validator model",
+    "filter model",
+    "awning"
   ]);
+}
+
+function offsiteStrength(candidate) {
+  if (candidate.strong_offsite_evidence === true) return "strong";
+  if (candidate.weak_offsite_evidence === true) return "weak";
+  return evidenceQuality(candidate).strength;
+}
+
+function hasExactFitOffsiteEvidence(candidate) {
+  return exactFitSignal(candidate) && offsiteStrength(candidate) === "strong";
 }
 
 function genericKeyword(candidate) {
@@ -212,7 +237,7 @@ function genericKeyword(candidate) {
 }
 
 function grade(candidate) {
-  const preSifPassed = candidate.pre_sif_passed === true || (candidate.pre_sif_status === "passed") || (candidate.pre_sif_pass_count >= 3 && !(candidate.pre_sif_failed_required_fields || []).length);
+  const preSifPassed = candidate.pre_sif_passed === true || (candidate.pre_sif_status === "passed") || (candidate.pre_sif_pass_count >= 4 && !(candidate.pre_sif_failed_required_fields || []).length);
   const evidenceDiff = candidate.evidence_based_differentiation || [];
   const sif = sifSignals(candidate);
   const hasAsinReverse = asinReverseEvidence(candidate);
@@ -220,13 +245,20 @@ function grade(candidate) {
   const supplyAcceptable = (candidate.supply_score || 0) >= 55;
   const riskNotHigh = (candidate.risk_score || 0) < 70;
   const riskGoodForA = (candidate.risk_score || 0) <= 45;
-  const exactFitEvidence = hasExactFitOffsiteEvidence(candidate);
+  const exactFit = exactFitSignal(candidate);
+  const strongEvidence = offsiteStrength(candidate) === "strong";
+  const weakEvidence = offsiteStrength(candidate) === "weak";
+  const hasTarget = hasText(targetAsinOrLink(candidate));
+  const homogeneity = String(candidate.homogeneity_judgment || candidate.commodity_risk || "").toLowerCase();
 
   if (!preSifPassed) return { ai_recommendation: "C", gate_status: "C", grade_reason: "failed Pre-SIF Gate" };
   if (genericKeyword(candidate)) return { ai_recommendation: "C", gate_status: "C", grade_reason: "generic keyword cannot enter A/B opportunity pool" };
   if ((candidate.risk_score || 0) >= 70) return { ai_recommendation: "C", gate_status: "C", grade_reason: "risk score too high" };
   if (candidate.rejected_history_hit === true && !hasDemandEvidence) {
     return { ai_recommendation: "C", gate_status: "C", grade_reason: "historically rejected without new demand evidence" };
+  }
+  if (homogeneity === "high" && !strongEvidence && !hasDemandEvidence) {
+    return { ai_recommendation: "C", gate_status: "C", grade_reason: "high homogeneity with weak evidence" };
   }
 
   if (hasDemandEvidence && evidenceDiff.length && riskGoodForA && supplyAcceptable) {
@@ -239,18 +271,44 @@ function grade(candidate) {
     };
   }
 
-  if (!hasDemandEvidence && exactFitEvidence) {
+  if (!hasDemandEvidence && (candidate.risk_flags || []).includes("patent_risk")) {
+    return {
+      ai_recommendation: "B",
+      gate_status: "B_PATENT_CHECK_REQUIRED",
+      grade_reason: "evidence exists, but patent risk must be checked before demand validation"
+    };
+  }
+
+  if (!hasDemandEvidence && exactFit && strongEvidence && hasTarget && !supplyAcceptable) {
+    return {
+      ai_recommendation: "B",
+      gate_status: "B_SUPPLIER_CHECK_REQUIRED",
+      grade_reason: "strong exact-fit evidence exists, but supplier/supply feasibility needs confirmation"
+    };
+  }
+
+  if (!hasDemandEvidence && exactFit && strongEvidence && hasTarget) {
     return {
       ai_recommendation: "B",
       gate_status: "B_ASIN_REVERSE_REQUIRED",
-      grade_reason: "long-tail exact-fit evidence exists, but no SIF/ASIN-reverse demand evidence yet"
+      grade_reason: "strong exact-fit evidence exists, but no SIF/ASIN-reverse demand evidence yet"
+    };
+  }
+
+  if (!hasDemandEvidence && (exactFit || strongEvidence || weakEvidence)) {
+    return {
+      ai_recommendation: "B",
+      gate_status: "B_WATCH_NEEDS_EVIDENCE",
+      grade_reason: weakEvidence
+        ? "weak offsite evidence; needs stronger demand proof before ASIN reverse watchlist"
+        : "needs stronger offsite or ASIN-reverse evidence before promotion"
     };
   }
 
   if (!evidenceDiff.length) {
     return {
       ai_recommendation: "B",
-      gate_status: "B",
+      gate_status: "B_WATCH_NEEDS_EVIDENCE",
       grade_reason: "no evidence-based differentiation; generated ideas cannot support A"
     };
   }
@@ -258,7 +316,7 @@ function grade(candidate) {
   if (!hasDemandEvidence) {
     return {
       ai_recommendation: "B",
-      gate_status: "B",
+      gate_status: "B_WATCH_NEEDS_EVIDENCE",
       grade_reason: "passes Pre-SIF but lacks SIF or ASIN-reverse demand evidence; max grade is B"
     };
   }
@@ -266,12 +324,12 @@ function grade(candidate) {
   if (!riskNotHigh || !supplyAcceptable) {
     return {
       ai_recommendation: "B",
-      gate_status: "B",
+      gate_status: supplyAcceptable ? "B_WATCH_NEEDS_EVIDENCE" : "B_SUPPLIER_CHECK_REQUIRED",
       grade_reason: "needs supply or risk verification before A"
     };
   }
 
-  return { ai_recommendation: "B", gate_status: "B", grade_reason: "needs additional evidence before A" };
+  return { ai_recommendation: "B", gate_status: "B_WATCH_NEEDS_EVIDENCE", grade_reason: "needs additional evidence before A" };
 }
 
 function humanDefaults(candidate) {
@@ -285,6 +343,12 @@ function humanDefaults(candidate) {
   if (candidate.gate_status === "B_ASIN_REVERSE_REQUIRED") {
     return { human_decision: "WATCH", human_notes: "ASIN reverse required before promotion to A", next_review_date: addDaysIso(7) };
   }
+  if (candidate.gate_status === "B_SUPPLIER_CHECK_REQUIRED") {
+    return { human_decision: "SUPPLIER_CHECK", human_notes: "Supplier feasibility required before ASIN reverse prioritization", next_review_date: addDaysIso(7) };
+  }
+  if (candidate.gate_status === "B_PATENT_CHECK_REQUIRED") {
+    return { human_decision: "PATENT_CHECK", human_notes: "Patent check required before further validation", next_review_date: addDaysIso(7) };
+  }
   if (candidate.ai_recommendation === "B") {
     return { human_decision: "WATCH", human_notes: "", next_review_date: "" };
   }
@@ -295,7 +359,8 @@ function watchlistEntry(candidate) {
   const keyword = candidate.product_keyword || candidate.keyword || "";
   return {
     keyword,
-    target_asin_or_link: candidate.target_asin_or_link || candidate.amazon_asin_or_link || candidate.amazon || candidate.asin || "",
+    status: candidate.gate_status,
+    target_asin_or_link: targetAsinOrLink(candidate),
     exact_fit_signal: candidate.exact_fit_or_model_specific || candidate.exact_fit_signal || candidate.compatibility || "",
     offsite_evidence: candidate.offsite_evidence || candidate.evidence || "",
     why_keyword_sif_failed_or_missing: candidate.why_keyword_sif_failed_or_missing || candidate.sif_missing_reason || "No ABA/SIF demand evidence available yet; ASIN-reverse validation required before A.",
@@ -310,15 +375,83 @@ function watchlistEntry(candidate) {
   };
 }
 
+function opportunityScore(candidate) {
+  let score = 0;
+  score += Number(candidate.supply_score || 0);
+  score -= Number(candidate.risk_score || 0);
+  score += exactFitSignal(candidate) ? 15 : 0;
+  score += offsiteStrength(candidate) === "strong" ? 20 : 0;
+  score += candidate.category_not_over_scanned === true ? 8 : 0;
+  score += candidate.homogeneity_judgment === "low" ? 8 : 0;
+  score -= candidate.homogeneity_judgment === "high" ? 12 : 0;
+  return score;
+}
+
+function applyWatchlistCapacity(scored, overflowOut) {
+  const caps = {
+    B_ASIN_REVERSE_REQUIRED: 15,
+    B_WATCH_NEEDS_EVIDENCE: 20
+  };
+  const out = scored.map((candidate) => ({ ...candidate, opportunity_score: opportunityScore(candidate) }));
+  const overflow = [];
+
+  for (const [status, cap] of Object.entries(caps)) {
+    const group = out
+      .filter((candidate) => candidate.gate_status === status)
+      .sort((a, b) => b.opportunity_score - a.opportunity_score);
+    const keep = new Set(group.slice(0, cap).map((candidate) => candidate.product_keyword || candidate.keyword));
+    for (const candidate of group.slice(cap)) {
+      candidate.overflow_previous_status = candidate.gate_status;
+      candidate.ai_recommendation = "C";
+      candidate.gate_status = "C";
+      candidate.overflow_rejected = true;
+      candidate.rejection_reason = "watchlist_capacity_exceeded";
+      candidate.grade_reason = "watchlist capacity exceeded; may be rechecked after 14 days if new evidence appears";
+      candidate.can_recheck_after_days = 14;
+      overflow.push(candidate);
+    }
+    for (const candidate of group.slice(0, cap)) {
+      if (!keep.has(candidate.product_keyword || candidate.keyword)) continue;
+      candidate.watchlist_kept = true;
+    }
+  }
+
+  if (overflow.length) {
+    fs.mkdirSync(path.dirname(overflowOut), { recursive: true });
+    const lines = [
+      "# Overflow Rejected",
+      "",
+      "These candidates exceeded daily watchlist capacity. This is not a permanent product failure; recheck after 14 days if new demand evidence appears.",
+      "",
+      "| Candidate | Previous status | Score | Reason | Can recheck after days |",
+      "|---|---|---:|---|---:|",
+      ...overflow.map((candidate) => {
+        const keyword = candidate.product_keyword || candidate.keyword || "";
+        return `| ${keyword} | ${candidate.overflow_previous_status || "watchlist"} | ${candidate.opportunity_score} | watchlist_capacity_exceeded | 14 |`;
+      })
+    ];
+    fs.writeFileSync(overflowOut, lines.join("\n"));
+  } else if (overflowOut) {
+    fs.mkdirSync(path.dirname(overflowOut), { recursive: true });
+    fs.writeFileSync(overflowOut, "# Overflow Rejected\n\nNo overflow rejected candidates in this run.\n");
+  }
+
+  return { scored: out, overflow };
+}
+
 function writeWatchlist(file, candidates) {
   if (!candidates.length) return;
   fs.mkdirSync(path.dirname(file), { recursive: true });
+  const asin = candidates.filter((candidate) => candidate.gate_status === "B_ASIN_REVERSE_REQUIRED");
+  const watch = candidates.filter((candidate) => candidate.gate_status === "B_WATCH_NEEDS_EVIDENCE");
   const lines = [
-    `# ASIN-Reverse Watchlist ${path.basename(file, ".md")}`,
+    `# Watchlist ${path.basename(file, ".md")}`,
     "",
-    "These candidates passed Pre-SIF and have long-tail exact-fit evidence, but cannot become A without SIF or ASIN-reverse demand evidence.",
+    "These candidates passed Pre-SIF but cannot become A without stronger demand evidence.",
     "",
-    ...candidates.flatMap((candidate) => {
+    "## B_ASIN_REVERSE_REQUIRED",
+    "",
+    ...asin.flatMap((candidate) => {
       const entry = watchlistEntry(candidate);
       return [
         `## ${entry.keyword}`,
@@ -329,6 +462,20 @@ function writeWatchlist(file, candidates) {
         `- why_keyword_sif_failed_or_missing: ${entry.why_keyword_sif_failed_or_missing}`,
         "- required_next_check:",
         ...entry.required_next_check.map((item) => `  - ${item}`),
+        `- next_review_date: ${entry.next_review_date}`,
+        ""
+      ];
+    }),
+    "## B_WATCH_NEEDS_EVIDENCE",
+    "",
+    ...watch.flatMap((candidate) => {
+      const entry = watchlistEntry(candidate);
+      return [
+        `### ${entry.keyword}`,
+        "",
+        `- target_asin_or_link: ${entry.target_asin_or_link}`,
+        `- offsite_evidence_strength: ${candidate.offsite_evidence_strength || offsiteStrength(candidate)}`,
+        `- reason: ${candidate.grade_reason}`,
         `- next_review_date: ${entry.next_review_date}`,
         ""
       ];
@@ -343,6 +490,7 @@ function main() {
   const input = argValue("input", path.join(runDir, "pre_sif_candidates.json"));
   const output = argValue("output", path.join(runDir, "scored_candidates.json"));
   const watchlistOut = argValue("watchlist-out", path.join(process.cwd(), "watchlist", `${today}.md`));
+  const overflowOut = argValue("overflow-out", path.join(process.cwd(), "rejected", "overflow_rejected.md"));
   const candidates = readJson(input, []);
 
   const scored = candidates.map((candidate) => {
@@ -365,12 +513,22 @@ function main() {
     const graded = { ...withScores, ...grade(withScores) };
     return { ...graded, ...humanDefaults(graded) };
   });
+  const capacity = applyWatchlistCapacity(scored, overflowOut);
 
   fs.mkdirSync(runDir, { recursive: true });
-  fs.writeFileSync(output, JSON.stringify(scored, null, 2));
-  const asinReverseWatchlist = scored.filter((candidate) => candidate.gate_status === "B_ASIN_REVERSE_REQUIRED");
-  writeWatchlist(watchlistOut, asinReverseWatchlist);
-  console.log(JSON.stringify({ input, output, scored: scored.length, b_asin_reverse_required: asinReverseWatchlist.length, watchlistOut }, null, 2));
+  fs.writeFileSync(output, JSON.stringify(capacity.scored, null, 2));
+  const watchlistCandidates = capacity.scored.filter((candidate) => ["B_ASIN_REVERSE_REQUIRED", "B_WATCH_NEEDS_EVIDENCE"].includes(candidate.gate_status));
+  writeWatchlist(watchlistOut, watchlistCandidates);
+  console.log(JSON.stringify({
+    input,
+    output,
+    scored: capacity.scored.length,
+    b_asin_reverse_required: capacity.scored.filter((candidate) => candidate.gate_status === "B_ASIN_REVERSE_REQUIRED").length,
+    b_watch_needs_evidence: capacity.scored.filter((candidate) => candidate.gate_status === "B_WATCH_NEEDS_EVIDENCE").length,
+    overflow_rejected: capacity.overflow.length,
+    watchlistOut,
+    overflowOut
+  }, null, 2));
 }
 
 if (require.main === module) {
@@ -384,5 +542,8 @@ module.exports = {
   grade,
   sifSignals,
   asinReverseEvidence,
-  watchlistEntry
+  watchlistEntry,
+  exactFitSignal,
+  offsiteStrength,
+  applyWatchlistCapacity
 };
