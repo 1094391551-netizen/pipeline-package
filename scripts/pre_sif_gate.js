@@ -307,6 +307,7 @@ function gateResult(candidate, blacklistText, categoryHistory) {
     optional,
     failedRequired,
     passedOptional,
+    neutralOptional,
     failedOptional,
     reason
   };
@@ -341,7 +342,7 @@ function main() {
       weak_offsite_evidence: result.evidence.weak,
       offsite_evidence_strength: result.evidence.strength,
       offsite_evidence_reasons: result.evidence.reasons,
-      category_not_over_scanned: result.category.value === true,
+      category_not_over_scanned: result.category.value,
       category_scan_frequency: result.category.category_scan_frequency,
       category_penalty_reason: result.category.category_penalty_reason,
       category_scan_count_14d: result.category.count_14d,
@@ -352,6 +353,7 @@ function main() {
       pre_sif_failed_required_fields: result.failedRequired,
       pre_sif_pass_count: result.passedOptional.length,
       pre_sif_passed_optional_fields: result.passedOptional,
+      pre_sif_neutral_optional_fields: result.neutralOptional,
       pre_sif_failed_optional_fields: result.failedOptional
     };
 
