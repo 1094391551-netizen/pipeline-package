@@ -11,6 +11,7 @@ Use `pipeline_qa_check.js` after scoring to verify tightened gates:
 - No candidate without Sif/ASIN-reverse demand evidence enters A.
 - Generic keywords cannot enter A.
 - Generated differentiation cannot support A.
+- Unknown category frequency is neutral; it neither passes nor fails Pre-SIF by itself.
 - `B_ASIN_REVERSE_REQUIRED` candidates are written to the watchlist.
 
 Regression fixture:

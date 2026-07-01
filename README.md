@@ -34,7 +34,7 @@ Before Sif, each candidate must satisfy all required fields:
 - Amazon ASIN or competitor link
 - offsite evidence
 
-Then it must pass at least 3 optional signals:
+Then it must pass at least 4 optional signals, and at least one of the exact-fit or replacement/consumable signals must be present:
 
 - exact-fit / model-specific signal
 - clear replacement, installation, or consumable use
@@ -43,6 +43,10 @@ Then it must pass at least 3 optional signals:
 - not in rejected history
 - low obvious commodity risk
 - category is not over-scanned
+
+`offsite_evidence` is classified as `strong_offsite_evidence` or `weak_offsite_evidence`. Weak evidence can pass Pre-SIF, but high-frequency categories with weak evidence and weak price/margin signals are rejected before Sif. Category frequency is tri-state: `true`, `false`, or `unknown`; unknown means the history is insufficient and does not add or subtract from the optional score.
+
+Category frequency is computed from `runs/`, `opportunities/`, `rejected/`, `watchlist/`, and `knowledge/category-coverage.md`. Missing history is treated as unknown, not as automatic failure.
 
 Failures are written to `rejected/pre_sif_rejected.md`.
 
@@ -70,10 +74,15 @@ Generated differentiation is not proof. It can support B-class research notes, b
 
 - `A`: can deep dive now, but only with demand evidence from Sif or ASIN reverse plus evidence-based differentiation
 - `B`: watch / needs more evidence; B is not a failure pool
-- `B_ASIN_REVERSE_REQUIRED`: long-tail exact-fit candidate with offsite evidence but no ABA/Sif history; send to `watchlist/YYYY-MM-DD.md`
+- `B_ASIN_REVERSE_REQUIRED`: long-tail exact-fit candidate with strong offsite evidence but no ABA/Sif history; send to `watchlist/YYYY-MM-DD.md`
+- `B_WATCH_NEEDS_EVIDENCE`: has some value, but evidence is too weak for ASIN reverse priority
+- `B_SUPPLIER_CHECK_REQUIRED`: evidence exists, but supply feasibility is below threshold
+- `B_PATENT_CHECK_REQUIRED`: evidence exists, but patent risk must be checked first
 - `C`: reject
 
 `A` is not "looks doable." It means the opportunity has passed the quality gates and has evidence of demand. Candidates without Sif or ASIN-reverse evidence are capped at `B`.
+
+Daily watchlist capacity is capped at 15 `B_ASIN_REVERSE_REQUIRED` candidates and 20 `B_WATCH_NEEDS_EVIDENCE` candidates. Overflow is written to `rejected/overflow_rejected.md` with a 14-day recheck note.
 
 ### 7. Human Decision
 

@@ -8,7 +8,7 @@ Run the Discovery Router first. Do not let explorer agents choose their own fami
 
 - Run all method-based explorers.
 - Each explorer returns 8 candidates.
-- Run Pre-SIF Gate before Sif; only candidates with pain point, Amazon ASIN/link, offsite evidence, and at least 3 optional signals may enter Sif.
+- Run Pre-SIF Gate before Sif; only candidates with pain point, Amazon ASIN/link, offsite evidence, at least 4 optional signals, and an exact-fit or replacement/consumable signal may enter Sif.
 - Apply hard exclusions before Sif validation.
 - Apply history penalty before ranking.
 - Send only qualified candidates to Sif.
@@ -19,6 +19,9 @@ Run the Discovery Router first. Do not let explorer agents choose their own fami
 - Do not promote "looks doable" candidates to `A`. `A` requires Sif evidence on at least 2 of Root/Demand/Competition or ASIN-reverse demand evidence.
 - Treat `B` as a watch pool, not a failure pool. No ABA history is acceptable for long-tail exact-fit parts, but those candidates must become `B_ASIN_REVERSE_REQUIRED` until ASIN reverse is checked.
 - Automatically generated differentiation cannot support `A`.
+- Split B candidates into `B_ASIN_REVERSE_REQUIRED`, `B_WATCH_NEEDS_EVIDENCE`, `B_SUPPLIER_CHECK_REQUIRED`, and `B_PATENT_CHECK_REQUIRED`. Treat unknown category frequency as neutral, not a pass or fail.
+- Do not put weak offsite evidence into `B_ASIN_REVERSE_REQUIRED`.
+- Enforce daily watchlist caps: max 15 `B_ASIN_REVERSE_REQUIRED`, max 20 `B_WATCH_NEEDS_EVIDENCE`; write overflow to `rejected/overflow_rejected.md`.
 
 ## Output Files
 
@@ -27,6 +30,7 @@ Run the Discovery Router first. Do not let explorer agents choose their own fami
 - `runs/YYYY-MM-DD/scored_candidates.json`
 - `runs/YYYY-MM-DD/skipped_due_to_history.md`
 - `rejected/pre_sif_rejected.md`
+- `rejected/overflow_rejected.md`
 - `watchlist/YYYY-MM-DD.md`
 - `opportunities/YYYY-MM-DD.md`
 - `rejected/YYYY-MM-DD.md`

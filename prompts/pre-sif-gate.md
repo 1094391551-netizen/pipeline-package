@@ -4,7 +4,7 @@ Run this gate before any candidate is sent to Sif.
 
 ## Pass Rule
 
-A candidate may enter Sif only after all required fields are present and at least 3 optional conditions pass.
+A candidate may enter Sif only after all required fields are present, at least 4 optional conditions pass, and at least one of the exact-fit or replacement/consumable optional signals is present.
 
 Required fields:
 
@@ -12,7 +12,7 @@ Required fields:
 2. `amazon_asin_or_link` clearly exists
 3. `offsite_evidence` clearly exists
 
-Optional 3-of-7 fields:
+Optional 4-of-7 fields:
 
 1. `exact_fit_or_model_specific`
 2. `clear_replacement_or_consumable_use`
@@ -23,6 +23,16 @@ Optional 3-of-7 fields:
 7. `category_not_over_scanned`
 
 Do not count `industry`, `category`, or "not in blacklist" by itself as strong evidence.
+
+Classify offsite evidence:
+
+- `strong_offsite_evidence`: eBay sold/completed listings, parts manual, service manual, exploded diagram, manufacturer parts page, independent replacement parts store, repair forum thread, YouTube repair video, or Reddit/forum thread with explicit repair/replacement demand.
+- `weak_offsite_evidence`: plain eBay listing, general blog, Pinterest/TikTok/Instagram content, search result summary, or compatibility-only mention without repair/replacement context.
+- Alibaba/1688 evidence is supply evidence only.
+
+Weak evidence may pass Pre-SIF, but high-frequency categories with weak evidence and weak price/margin signal must fail before Sif. Unknown category history should not add or subtract from the optional score.
+
+Compute `category_not_over_scanned` from `runs/`, `opportunities/`, `rejected/`, `watchlist/`, and `knowledge/category-coverage.md`. If history is unavailable, use `unknown`; do not mark every category false.
 
 ## Failure Output
 
