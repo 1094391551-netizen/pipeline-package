@@ -1,8 +1,11 @@
 # Runtime outputs
-runs/
+runs/**
+!runs/
+!runs/.gitkeep
+!runs/*/
+!runs/*/.gitkeep
 runs-*/
 round_*/
-reports/
 tmp/
 temp/
 
