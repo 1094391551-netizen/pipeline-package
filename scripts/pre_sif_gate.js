@@ -18,6 +18,8 @@ function readText(file) {
 }
 
 function hasText(value) {
+  if (Array.isArray(value)) return value.some((item) => hasText(item));
+  if (value && typeof value === "object") return Object.keys(value).length > 0;
   return typeof value === "string" && value.trim().length > 0;
 }
 
@@ -29,23 +31,87 @@ function isGenericKeyword(keyword) {
   return words.length <= 1 || words.every((word) => generic.has(word));
 }
 
-function conditionResults(candidate, blacklistText) {
+function lowerText(value) {
+  if (Array.isArray(value)) return value.map(lowerText).join(" ");
+  if (value && typeof value === "object") return JSON.stringify(value).toLowerCase();
+  return String(value || "").toLowerCase();
+}
+
+function hasAny(text, words) {
+  const value = lowerText(text);
+  return words.some((word) => value.includes(word));
+}
+
+function fieldValue(candidate, keys) {
+  for (const key of keys) {
+    if (hasText(candidate[key])) return candidate[key];
+  }
+  return "";
+}
+
+function requiredResults(candidate) {
+  return [
+    {
+      key: "pain_point",
+      pass: hasText(fieldValue(candidate, ["pain_point", "repair_pain", "problem"]))
+    },
+    {
+      key: "amazon_asin_or_link",
+      pass: hasText(fieldValue(candidate, ["amazon_asin_or_link", "amazon", "asin", "target_asin_or_link"]))
+    },
+    {
+      key: "offsite_evidence",
+      pass: hasText(fieldValue(candidate, ["offsite_evidence", "evidence", "external_evidence"]))
+    }
+  ];
+}
+
+function optionalResults(candidate, blacklistText) {
   const keyword = String(candidate.product_keyword || candidate.keyword || "").toLowerCase();
   const pain = candidate.pain_point || candidate.repair_pain || candidate.problem;
-  const fit = candidate.exact_fit_or_model_specific || candidate.model || candidate.compatibility;
-  const asin = candidate.amazon_asin_or_link || candidate.amazon || candidate.asin;
-  const evidence = candidate.offsite_evidence || candidate.evidence;
+  const fit = fieldValue(candidate, ["exact_fit_or_model_specific", "model", "compatibility", "part_number", "exact_fit_signal"]);
   const price = candidate.price || candidate.price_band || candidate.margin_note || candidate.profit_note;
+  const replacementText = [keyword, pain, candidate.use_case, candidate.recommended_action].map(lowerText).join(" ");
+  const homogeneity = lowerText(candidate.homogeneity_judgment || candidate.commodity_risk || "");
+  const overScanned = candidate.category_over_scanned === true ||
+    candidate.industry_over_scanned === true ||
+    candidate.scanned_in_past_30_days === true ||
+    Number(candidate.industry_scan_count_14d || 0) >= 3;
+  const rejectedHit = candidate.rejected_history_hit === true || (keyword ? blacklistText.includes(keyword) : false);
 
   return [
-    { key: "pain_point", pass: hasText(pain) },
-    { key: "specific_equipment_model_brand_or_scene", pass: hasText(fit) || hasText(candidate.industry) },
-    { key: "amazon_asin_or_competitor_link", pass: hasText(asin) },
-    { key: "offsite_evidence", pass: hasText(evidence) },
-    { key: "not_generic_keyword", pass: !isGenericKeyword(keyword) },
-    { key: "price_or_margin_feasible", pass: hasText(price) || hasText(candidate.supply_notes) },
-    { key: "not_in_rejected_blacklist", pass: keyword ? !blacklistText.includes(keyword) : false }
+    { key: "exact_fit_or_model_specific", pass: hasText(fit) || hasAny(replacementText, ["exact-fit", "model-specific", "part number", "compatible with"]) },
+    { key: "clear_replacement_or_consumable_use", pass: hasAny(replacementText, ["repair", "replacement", "replace", "install", "installation", "consumable", "wear part", "gasket", "belt", "seal", "strip", "latch", "strap", "tire", "filter"]) },
+    { key: "non_generic_keyword", pass: !isGenericKeyword(keyword) },
+    { key: "estimated_price_or_margin_potential", pass: hasText(price) || hasText(candidate.supply_notes) || hasText(candidate.estimated_price_or_margin_potential) },
+    { key: "not_in_rejected_history", pass: keyword ? !rejectedHit : false },
+    { key: "low_obvious_commodity_risk", pass: !hasAny(homogeneity, ["high", "commodity", "homogeneous", "same", "generic"]) && !isGenericKeyword(keyword) },
+    { key: "category_not_over_scanned", pass: candidate.category_not_over_scanned === true || candidate.industry_frequency === "low" || candidate.industry_frequency === "unseen" || (!overScanned && hasText(candidate.industry_frequency)) }
   ];
+}
+
+function gateResult(candidate, blacklistText) {
+  const required = requiredResults(candidate);
+  const optional = optionalResults(candidate, blacklistText);
+  const failedRequired = required.filter((item) => !item.pass).map((item) => item.key);
+  const passedOptional = optional.filter((item) => item.pass).map((item) => item.key);
+  const failedOptional = optional.filter((item) => !item.pass).map((item) => item.key);
+  const passed = failedRequired.length === 0 && passedOptional.length >= 3;
+  const reason = passed
+    ? "Pre-SIF Gate passed: required fields present and optional threshold met"
+    : failedRequired.length
+      ? `Pre-SIF Gate failed: missing required fields (${failedRequired.join(", ")})`
+      : `Pre-SIF Gate failed: optional threshold not met (${passedOptional.length}/7)`;
+
+  return {
+    passed,
+    required,
+    optional,
+    failedRequired,
+    passedOptional,
+    failedOptional,
+    reason
+  };
 }
 
 function main() {
@@ -69,23 +135,26 @@ function main() {
   const rejected = [];
 
   for (const candidate of candidates) {
-    const conditions = conditionResults(candidate, blacklistText);
-    const passedConditions = conditions.filter((item) => item.pass).map((item) => item.key);
-    const failedConditions = conditions.filter((item) => !item.pass).map((item) => item.key);
+    const result = gateResult(candidate, blacklistText);
     const enriched = {
       ...candidate,
-      pre_sif_pass_count: passedConditions.length,
-      pre_sif_passed_conditions: passedConditions,
-      pre_sif_failed_conditions: failedConditions
+      pre_sif_passed: result.passed,
+      pre_sif_status: result.passed ? "passed" : "failed",
+      pre_sif_required_fields_passed: result.required.filter((item) => item.pass).map((item) => item.key),
+      pre_sif_failed_required_fields: result.failedRequired,
+      pre_sif_pass_count: result.passedOptional.length,
+      pre_sif_passed_optional_fields: result.passedOptional,
+      pre_sif_failed_optional_fields: result.failedOptional
     };
 
-    if (passedConditions.length >= 3) {
+    if (result.passed) {
       passed.push(enriched);
     } else {
       rejected.push({
         ...enriched,
         ai_recommendation: "C",
-        rejection_reason: `Pre-SIF Gate failed: ${passedConditions.length}/7 conditions passed`
+        rejection_reason: result.reason,
+        can_recheck_after_days: result.failedRequired.length ? 14 : 7
       });
     }
   }
@@ -97,12 +166,11 @@ function main() {
     "",
     `Updated: ${today}`,
     "",
-    "| Product keyword | Industry | Pass count | Failed conditions | Reason |",
-    "|---|---|---:|---|---|",
+    "| Candidate | Failed required fields | Failed optional fields | Reason | Can recheck after days |",
+    "|---|---|---|---|---:|",
     ...rejected.map((item) => {
       const keyword = item.product_keyword || item.keyword || "";
-      const industry = item.industry || "";
-      return `| ${keyword} | ${industry} | ${item.pre_sif_pass_count}/7 | ${item.pre_sif_failed_conditions.join(", ")} | ${item.rejection_reason} |`;
+      return `| ${keyword} | ${item.pre_sif_failed_required_fields.join(", ") || "-"} | ${item.pre_sif_failed_optional_fields.join(", ") || "-"} | ${item.rejection_reason} | ${item.can_recheck_after_days} |`;
     })
   ];
 
@@ -110,4 +178,11 @@ function main() {
   console.log(JSON.stringify({ input, passed: passed.length, rejected: rejected.length, passOut, rejectOut }, null, 2));
 }
 
-main();
+if (require.main === module) {
+  main();
+}
+
+module.exports = {
+  gateResult,
+  isGenericKeyword
+};
